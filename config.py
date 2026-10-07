@@ -10,6 +10,25 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# ---------------------------------------------------------------------------
+# Streamlit Cloud secrets bridge
+# On Streamlit Cloud, secrets are in st.secrets (not env vars).
+# We pull them here so the rest of the codebase stays unchanged.
+# ---------------------------------------------------------------------------
+try:
+    import streamlit as st
+    _st_secrets = st.secrets
+except Exception:
+    _st_secrets = {}
+
+
+def _get_secret(key: str, default: str = "") -> str:
+    """Read from st.secrets first, fall back to os.getenv, then default."""
+    try:
+        return str(_st_secrets[key])
+    except (KeyError, TypeError):
+        return os.getenv(key, default)
+
 
 @dataclass
 class FilterConfig:
@@ -96,9 +115,9 @@ class FundingConfig:
 class AppConfig:
     exchange_id: str = "binance"
     settle_currency: str = "USDT"
-    demo_mode: bool = os.getenv("DEMO_MODE", "false").lower() == "true"
-    gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
-    refresh_interval_seconds: int = int(os.getenv("REFRESH_INTERVAL_SECONDS", "60"))
+    demo_mode: bool = _get_secret("DEMO_MODE", os.getenv("DEMO_MODE", "false")).lower() == "true"
+    gemini_api_key: str = _get_secret("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
+    refresh_interval_seconds: int = int(_get_secret("REFRESH_INTERVAL_SECONDS", os.getenv("REFRESH_INTERVAL_SECONDS", "60")))
     
     filters: FilterConfig = field(default_factory=FilterConfig)
     smc: SMCConfig = field(default_factory=SMCConfig)
