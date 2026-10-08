@@ -413,6 +413,11 @@ if stats and getattr(stats, "is_stale", False):
     st.error(
         f"⚠ DATA STALE: Unable to establish live connection to exchange. Displaying cached data.{err_detail}"
     )
+    if not st.session_state.scanner_config.demo_mode:
+        if st.button("🎮 Enable Demo Mode & Scan Simulated SMC Markets", type="primary"):
+            st.session_state.scanner_config.demo_mode = True
+            st.session_state.candidates = []
+            st.rerun()
 
 # Statistics Metrics Row
 col_s1, col_s2, col_s3, col_s4, col_s5, col_s6, col_s7 = st.columns(7)
