@@ -407,8 +407,9 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-if stats and stats.is_stale:
-    err_detail = f"\n\n**Details:** {stats.error_message}" if (stats and stats.error_message) else ""
+if stats and getattr(stats, "is_stale", False):
+    err_msg = getattr(stats, "error_message", None)
+    err_detail = f"\n\n**Details:** {err_msg}" if err_msg else ""
     st.error(
         f"⚠ DATA STALE: Unable to establish live connection to exchange. Displaying cached data.{err_detail}"
     )
