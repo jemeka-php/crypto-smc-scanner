@@ -25,9 +25,12 @@ except Exception:
 def _get_secret(key: str, default: str = "") -> str:
     """Read from st.secrets first, fall back to os.getenv, then default."""
     try:
-        return str(_st_secrets[key])
-    except (KeyError, TypeError):
-        return os.getenv(key, default)
+        if key in _st_secrets:
+            return str(_st_secrets[key])
+    except Exception:
+        pass
+    return os.getenv(key, default)
+
 
 
 @dataclass
@@ -118,6 +121,7 @@ class AppConfig:
     demo_mode: bool = _get_secret("DEMO_MODE", os.getenv("DEMO_MODE", "false")).lower() == "true"
     gemini_api_key: str = _get_secret("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
     refresh_interval_seconds: int = int(_get_secret("REFRESH_INTERVAL_SECONDS", os.getenv("REFRESH_INTERVAL_SECONDS", "60")))
+    proxy_url: str = _get_secret("PROXY_URL", os.getenv("PROXY_URL", os.getenv("HTTPS_PROXY", "")))
     
     filters: FilterConfig = field(default_factory=FilterConfig)
     smc: SMCConfig = field(default_factory=SMCConfig)

@@ -44,6 +44,7 @@ class ScanStats:
     total_duration_s: float = 0.0
     api_requests_count: int = 0
     symbols_processed: int = 0
+    error_message: Optional[str] = None
 
 
 class MarketScanner:
@@ -53,7 +54,10 @@ class MarketScanner:
 
     def __init__(self, config: AppConfig, exchange_client: Optional[ExchangeClient] = None):
         self.config = config
-        self.client = exchange_client or ExchangeClient(demo_mode=config.demo_mode)
+        self.client = exchange_client or ExchangeClient(
+            demo_mode=config.demo_mode,
+            proxy_url=getattr(config, "proxy_url", None),
+        )
         self.last_candidates: List[Candidate] = []
         self.last_stats: Optional[ScanStats] = None
 
@@ -77,6 +81,7 @@ class MarketScanner:
         tickers = self.client.fetch_universe_tickers()
         total_markets = len(tickers)
         if total_markets == 0:
+            err = getattr(self.client, "last_error_message", None) or "Unable to fetch universe tickers from exchange."
             stats = ScanStats(
                 markets_scanned=0,
                 passed_liquidity=0,
@@ -87,6 +92,7 @@ class MarketScanner:
                 top_candidates=0,
                 scan_timestamp=time.time(),
                 is_stale=True,
+                error_message=err,
             )
             return [], stats
 
@@ -268,6 +274,7 @@ class MarketScanner:
             total_duration_s=round(total_duration, 2),
             api_requests_count=req_count,
             symbols_processed=total_shortlist,
+            error_message=getattr(self.client, "last_error_message", None) if self.client.is_stale else None,
         )
 
         self.last_candidates = candidates

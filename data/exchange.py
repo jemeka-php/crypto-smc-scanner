@@ -5,6 +5,7 @@ Exchange client for Binance USDT-M Perpetual Futures data collection with cachin
 from dataclasses import dataclass
 import logging
 import math
+import os
 import time
 from typing import Dict, List, Optional, Tuple
 import pandas as pd
@@ -34,16 +35,29 @@ class ExchangeClient:
 
     BASE_URL = "https://fapi.binance.com"
 
-    def __init__(self, demo_mode: bool = False, session: Optional[requests.Session] = None):
+    def __init__(
+        self,
+        demo_mode: bool = False,
+        session: Optional[requests.Session] = None,
+        proxy_url: Optional[str] = None,
+    ):
         self.demo_mode = demo_mode
         self.session = session or requests.Session()
+        self.proxy_url = proxy_url or os.getenv("PROXY_URL") or os.getenv("HTTPS_PROXY")
+        if self.proxy_url:
+            self.session.proxies.update({
+                "http": self.proxy_url,
+                "https": self.proxy_url,
+            })
         self.session.headers.update({
             "User-Agent": "CryptoSMCScanner/1.0",
             "Accept": "application/json",
         })
         self.is_stale = False
+        self.last_error_message: Optional[str] = None
         self.last_fetch_time = 0.0
         self.request_count = 0
+
 
     def reset_request_count(self) -> None:
         """Reset live API request counter."""
@@ -67,7 +81,15 @@ class ExchangeClient:
             self.request_count += 1
             resp = self.session.get(url, timeout=10)
             if resp.status_code != 200:
-                logger.error(f"Failed to fetch tickers: HTTP {resp.status_code}")
+                if resp.status_code in (403, 451):
+                    self.last_error_message = (
+                        f"Binance Geo-Restriction (HTTP {resp.status_code}): US cloud servers "
+                        "(e.g. Streamlit Community Cloud) are restricted by Binance Futures. "
+                        "Enable 'Demo Mode' in the sidebar to run the full SMC scanner, or configure a non-US proxy in secrets."
+                    )
+                else:
+                    self.last_error_message = f"Exchange returned HTTP {resp.status_code}"
+                logger.error(f"Failed to fetch tickers: {self.last_error_message}")
                 self.is_stale = True
                 return []
 
@@ -107,11 +129,13 @@ class ExchangeClient:
                     continue
 
             self.is_stale = False
+            self.last_error_message = None
             self.last_fetch_time = time.time()
             GLOBAL_CACHE.set(cache_key, tickers)
             return tickers
 
         except Exception as e:
+            self.last_error_message = f"Connection error: {str(e)}"
             logger.error(f"Error fetching 24hr tickers: {e}")
             self.is_stale = True
             return []

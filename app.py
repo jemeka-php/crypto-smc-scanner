@@ -408,7 +408,10 @@ st.markdown(
 )
 
 if stats and stats.is_stale:
-    st.error("⚠ DATA STALE: Unable to establish live connection to exchange. Displaying cached data.")
+    err_detail = f"\n\n**Details:** {stats.error_message}" if (stats and stats.error_message) else ""
+    st.error(
+        f"⚠ DATA STALE: Unable to establish live connection to exchange. Displaying cached data.{err_detail}"
+    )
 
 # Statistics Metrics Row
 col_s1, col_s2, col_s3, col_s4, col_s5, col_s6, col_s7 = st.columns(7)
